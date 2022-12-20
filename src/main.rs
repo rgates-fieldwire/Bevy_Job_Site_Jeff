@@ -10,6 +10,8 @@ const GEM_SIDE_LENGTH: f32 = 50.0;
 
 fn main() {
     App::new()
+        .insert_resource(ClearColor(Color::hex("303234").unwrap()))
+        .insert_resource(GameScore(0.0))
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -31,6 +33,7 @@ fn main() {
         .add_system(control)
         .add_system(animate_once)
         .add_system(shuffle)
+        .add_system(text_update_system)
         .run();
 }
 
@@ -40,7 +43,18 @@ struct VisibleBoard(HashMap<UVec2, Entity>);
 #[derive(Component)]
 struct MainCamera;
 
-fn setup_graphics(mut commands: Commands, board: Res<Board>, ass: Res<AssetServer>) {
+#[derive(Component)]
+struct ScoreText;
+
+#[derive(Resource)]
+struct GameScore(f32);
+
+fn setup_graphics(
+    mut commands: Commands, 
+    board: Res<Board>, 
+    ass: Res<AssetServer>,
+    asset_server: Res<AssetServer>
+){
     let board_side_length = GEM_SIDE_LENGTH * 10.0;
     let centered_offset_x = board_side_length / 2.0 - GEM_SIDE_LENGTH / 2.0;
     let centered_offset_y = board_side_length / 2.0 - GEM_SIDE_LENGTH / 2.0;
@@ -81,6 +95,26 @@ fn setup_graphics(mut commands: Commands, board: Res<Board>, ass: Res<AssetServe
     let board = VisibleBoard(gems);
 
     commands.entity(vis_board).insert(board);
+
+    commands.spawn((
+        // Create a TextBundle that has a Text with a list of sections.
+        TextBundle::from_sections([
+            TextSection::new(
+                "Score: ",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 60.0,
+                    color: Color::WHITE,
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font: asset_server.load("fonts/FiraMono-Medium.ttf"),
+                font_size: 60.0,
+                color: Color::GOLD,
+            }),
+        ]),
+        ScoreText,
+    ));
 }
 
 fn map_type_to_path(typ: u32) -> String {
@@ -116,6 +150,7 @@ fn consume_events(
     ass: Res<AssetServer>,
     mut board: Query<(Entity, &mut VisibleBoard)>,
     animations: Query<(), With<MoveTo>>,
+    mut state: ResMut<GameScore>,
 ) {
     if animations.iter().count() == 0 {
         if let Ok(event) = events.pop() {
@@ -148,6 +183,8 @@ fn consume_events(
                     );
                 }
                 BoardEvent::Matched(matches) => {
+                    state.0 += 1.0;
+
                     board_commands
                         .push(BoardCommand::Pop(
                             matches.without_duplicates().iter().copied().collect(),
@@ -403,5 +440,14 @@ fn shuffle(
                 board_commands.push(BoardCommand::Shuffle).unwrap();
             }
         }
+    }
+}
+
+fn text_update_system( 
+    mut query: Query<&mut Text, With<ScoreText>>,
+    mut state: ResMut<GameScore>
+) {
+    for mut text in &mut query {
+        text.sections[1].value = state.0.to_string();
     }
 }

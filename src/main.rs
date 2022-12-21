@@ -17,7 +17,7 @@ fn main() {
                 .set(WindowPlugin {
                     window: WindowDescriptor {
                         resizable: false,
-                        title: "bevy_match3 basic example".to_string(),
+                        title: "Job site Jeff the Game".to_string(),
                         ..WindowDescriptor::default()
                     },
                     ..default()
